@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>政治背诵助手 - Sniper276</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+    <!-- 1. 初始设置界面 -->
+    <div id="setup-screen" class="card">
+        <!-- 标题与署名行 -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h1 style="margin: 0; color: var(--primary); font-size: 1.5rem;">政治背诵助手</h1>
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <!-- 深色模式切换按钮 -->
+                <button id="theme-toggle" style="background: var(--bg-body); border: 1px solid var(--border-color); cursor: pointer; font-size: 1.1rem; padding: 5px 10px; border-radius: 8px;">🌙</button>
+                <span onclick="openAboutModal()" style="cursor: pointer; font-size: 0.8rem; color: var(--secondary); font-weight: bold; letter-spacing: 1px; display: flex; align-items: center; gap: 4px;">    Sniper276 <i style="font-style: normal; font-size: 1rem;">ℹ️</i></span>
+            </div>
+        </div>
+
+        <!-- 全局搜索框 -->
+        <div id="search-container" style="margin: 15px 0; position: relative;">
+            <input type="text" id="global-search" placeholder="🔍 快速搜索题目或知识点 (回车定位)..." 
+                   style="padding: 12px; border-radius: 12px; border: 2px solid var(--border-color); width: 100%; box-sizing: border-box; font-size: 0.9rem; background: var(--input-bg); color: var(--text-main); outline: none;">
+            <div id="search-results" class="hidden" style="background: var(--bg-card); border: 1px solid var(--border-color); max-height: 250px; overflow-y: auto; position: absolute; top: 100%; left: 0; width: 100%; z-index: 1000; border-radius: 12px; box-shadow: var(--shadow);"></div>
+        </div>
+        
+        <!-- 全局进度统计 -->
+        <div class="stats-text" id="global-stats" style="margin-top: 20px;">
+            <span>正在同步本地进度...</span>
+            <span>错题: 0</span>
+        </div>
+		<div class="progress-container">
+			<div id="global-progress-bar" class="progress-fill"></div>
+		</div>
+
+		<!-- 荣誉统计面板：增加了 margin-bottom 和背景色调整 -->
+		<div id="honor-stats" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 15px; margin-bottom: 20px; text-align: center;">
+			<div style="background: var(--input-bg); padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);">
+				<div style="font-size: 0.7rem; color: var(--text-sub); margin-bottom: 4px;">累计时长</div>
+				<div id="stat-time" style="font-weight: bold; color: var(--primary); font-size: 0.9rem;">00:00:00</div>
+			</div>
+			<div style="background: var(--input-bg); padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);">
+				<div style="font-size: 0.7rem; color: var(--text-sub); margin-bottom: 4px;">累计默写</div>
+				<div id="stat-chars" style="font-weight: bold; color: var(--success); font-size: 0.9rem;">0 字</div>
+			</div>
+			<div style="background: var(--input-bg); padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);">
+				<div style="font-size: 0.7rem; color: var(--text-sub); margin-bottom: 4px;">练习次数</div>
+				<div id="stat-sessions" style="font-weight: bold; color: var(--warning); font-size: 0.9rem;">0 次</div>
+			</div>
+		</div>
+
+        <!-- 列表管理导航 -->
+        <div class="nav-tabs">
+            <button onclick="showListManager('mastered')" class="btn-success" style="flex: 1;">已会本</button>
+            <button onclick="showListManager('wrong')" class="btn-danger" style="flex: 1;">错题本</button>
+        </div>
+
+        <!-- 存档导出/导入 -->
+        <div style="margin-top: 10px; display: flex; gap: 10px;">
+            <button onclick="openArchiveModal('export')" class="btn-sub" style="flex:1; background: var(--primary); font-size: 0.85rem; padding: 12px;">导出存档代码</button>
+            <button onclick="openArchiveModal('import')" class="btn-sub" style="flex:1; background: #8b5cf6; font-size: 0.85rem; padding: 12px;">手动导入存档</button>
+        </div>
+
+        <hr style="margin: 25px 0; border: 0; border-top: 1px solid var(--border-color);">
+
+        <!-- 专题选择 -->
+        <div style="margin-bottom: 10px; display: flex; gap: 10px; align-items: center;">
+            <span style="font-size: 0.9rem; font-weight: bold; color: var(--text-sub);">专题筛选:</span>
+            <button onclick="toggleAll(true)" class="btn-sub" style="padding: 5px 12px; font-size: 0.75rem; border-radius: 6px;">全选</button>
+            <button onclick="toggleAll(false)" class="btn-sub" style="padding: 5px 12px; font-size: 0.75rem; border-radius: 6px;">清空</button>
+        </div>
+
+        <div id="topic-list" style="max-height:220px; overflow-y:auto; margin: 10px 0; border:1px solid var(--border-color); padding:12px; border-radius: 12px; background: var(--input-bg); color: var(--text-main);"></div>
+        
+        <!-- 开始按钮区 -->
+        <div style="margin-top: 20px; display: flex; flex-direction: column; gap: 12px;">
+            <label style="cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--text-main);">
+                <input type="checkbox" id="chk-shuffle" style="width:16px; height:16px;"> 乱序模式 (随机打乱所有题目)
+            </label>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="startSession(false)" class="btn-primary" style="flex: 2; padding: 16px; font-size: 1.1rem; letter-spacing: 2px;">开始背诵</button>
+                <button id="btn-wrong-mode" onclick="startSession(true)" class="btn-sub" style="flex: 1; border: 2px solid var(--warning); background: transparent; color: var(--warning);">错题强化</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. 练习/默写界面 -->
+    <div id="quiz-screen" class="card hidden">
+        <div class="stats-text">
+            <span id="quiz-progress-text" style="font-weight: bold;">题目加载中...</span>
+            <span id="quiz-percent">0%</span>
+        </div>
+        <div class="progress-container" style="height: 6px; margin: 10px 0 20px 0;">
+            <div id="quiz-progress-bar" class="progress-fill"></div>
+        </div>
+
+        <div id="mode-indicator-container" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <div id="mode-indicator" class="mode-tag"></div>
+        </div>
+
+        <div id="q-title" class="question"></div>
+        
+        <div class="keyword-area">
+            <button onclick="showNextKeyword()" class="btn-sub" style="padding: 4px 12px; font-size: 0.75rem; border-radius: 20px; background: var(--bg-body); color: var(--text-sub); border: 1px solid var(--border-color);">💡 提示关键词 (Space)</button>
+            <div id="keywords-container" style="margin-top:12px"></div>
+        </div>
+
+        <!-- 内容区域 -->
+        <div id="content-area"></div>
+
+        <!-- 关键词比对可视化 -->
+        <div id="comparison-result" class="hidden" style="margin-top: 20px; padding: 15px; background: var(--bg-body); border: 1px solid var(--border-color); border-radius: 12px;">
+            <div style="font-size: 0.8rem; color: var(--text-sub); margin-bottom: 10px; font-weight: bold;">关键词检出比对：</div>
+            <div id="comparison-tags" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+        </div>
+
+        <!-- 操作区 -->
+        <div class="btn-group">
+            <button id="btn-prev" onclick="goPrev()" class="btn-sub" style="background: var(--bg-body); color: var(--text-main); border: 1px solid var(--border-color);">上一题</button>
+            <button id="btn-wrong" onclick="markWrong()" class="btn-danger">记不住/标错</button>
+            <button id="btn-next" onclick="handleMainAction()" class="btn-primary" style="flex: 1;">已掌握/核对答案</button>
+        </div>
+    </div>
+
+    <!-- 3. 已会/错题管理浮层 -->
+    <div id="list-manager" class="list-manager">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; position: sticky; top: 0; background: var(--bg-body); padding: 15px 0; border-bottom: 2px solid var(--border-color); z-index: 100;">
+            <h2 id="list-title" style="margin:0; color: var(--primary);">列表管理</h2>
+            <button onclick="closeListManager()" class="btn-sub" style="padding: 8px 20px;">返回主页</button>
+        </div>
+        <div id="list-content"></div>
+    </div>
+
+    <!-- 4. 存档管理弹窗 -->
+    <div id="archive-modal" class="list-manager" style="background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 9999;">
+        <div class="card" style="width: 90%; max-width: 500px; margin: auto;">
+            <h3 id="archive-title" style="margin-top:0;">存档管理</h3>
+            <p style="font-size: 0.8rem; color: var(--text-sub); margin-bottom: 15px;">处理您的进度 JSON 代码：</p>
+            
+            <textarea id="archive-area" spellcheck="false" style="width: 100%; height: 200px; font-family: monospace; font-size: 0.75rem; padding: 10px; box-sizing: border-box; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-body); color: var(--text-main);"></textarea>
+            
+			<!-- 在 textarea 下方，原本的一键复制按钮上面，增加一个一键清空按钮 -->
+			<div style="display: flex; gap: 10px; margin-top: 10px;">
+				<button onclick="copyArchiveCode()" class="btn-success" style="flex: 2;">一键复制存档代码</button>
+				<button onclick="clearImportArea()" class="btn-sub" style="flex: 1; background: #64748b;">清空</button>
+			</div>
+
+            <div class="btn-group" style="margin-top: 15px;">
+                <button onclick="closeArchiveModal()" class="btn-sub" style="flex:1">取消</button>
+                <button id="btn-apply-archive" onclick="applyImport()" class="btn-primary" style="flex:1; background: #8b5cf6;">导入并同步</button>
+            </div>
+        </div>
+    </div>
+    
+    <footer style="text-align: center; margin-top: 30px; padding: 20px; font-size: 0.8rem; color: var(--text-sub); border-top: 1px solid var(--border-color);">
+        政治背诵助手 | 版本: v1.4 (Custom) | 开发者: <strong>Sniper276</strong>
+    </footer>
+    
+	<div id="about-modal" class="list-manager" style="background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 10001;">
+		<div class="card" style="width: 85%; max-width: 320px; margin: auto; text-align: center; padding: 25px;">
+			<!-- 开发者头像 -->
+			<div style="margin-bottom: 15px;">
+				<img src="avatar.jpg" onerror="this.src='https://via.placeholder.com/80?text=S'" 
+					 style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid var(--primary); padding: 2px;">
+			</div>
+			
+			<h3 style="margin: 0; color: var(--text-main);">政治背诵助手</h3>
+			<p style="font-size: 0.75rem; color: var(--text-sub); margin-top: 5px;">版本: v1.4.2 (Stable)</p>
+			
+			<hr style="border: 0; border-top: 1px solid var(--border-color); margin: 15px 0;">
+			
+			<!-- 致谢部分 -->
+			<div style="text-align: left; background: var(--bg-body); padding: 10px; border-radius: 8px; margin-bottom: 20px;">
+				<div style="font-size: 0.7rem; font-weight: bold; color: var(--primary); margin-bottom: 4px;">🙏 致谢</div>
+				<p style="font-size: 0.7rem; color: var(--text-main); margin: 0; line-height: 1.4;">
+					感谢 <strong>张思琪老师</strong> 在初三2班班级群提供的填空题答案（提纲核心来源）。
+				</p>
+			</div>
+
+			<!-- 社交链接 -->
+			<div style="display: flex; justify-content: space-around; margin-bottom: 20px;">
+				<a href="https://github.com/Sniper-bit-coder" target="_blank" title="GitHub" style="text-decoration: none; font-size: 1.4rem;">🔗</a>
+				<a href="mailto:timsniper276@gmail.com" title="Email" style="text-decoration: none; font-size: 1.4rem;">📧</a>
+				<a href="https://t.me/sniper_276" target="_blank" title="Telegram" style="text-decoration: none; font-size: 1.4rem;">✈️</a>
+			</div>
+
+			<button onclick="closeAboutModal()" class="btn-primary" style="width: 100%; padding: 10px;">返回</button>
+		</div>
+	</div>
+    
+    <div class="watermark">Sniper276</div>
+</div>
+
+<!-- 脚本加载 -->
+<script src="tigang_data.js"></script>
+<script src="app-config.js"></script>
+<script src="app-utils.js"></script>
+<script src="app-ui.js"></script>
+<script src="app-core.js"></script>
+<script src="features.js"></script>
+<script src="app-theme.js"></script>
+</body>
+</html>
