@@ -1,4 +1,4 @@
-name: 自动生成安卓安装包 (隔离修复版)
+name: 自动生成安卓安装包 (图标完美修复版)
 on:
   push:
     branches: [ main, master ]
@@ -21,14 +21,10 @@ jobs:
         with:
           node-version: 20
 
-      - name: 4. 隔离网页资源 (核心修复步骤)
+      - name: 4. 隔离网页资源
         run: |
-          # 创建一个完全干净的输出目录
           mkdir -p www
-          # 只拷贝网页运行需要的文件，不拷贝隐藏文件夹
           cp *.html *.js *.css *.json *.jpg *.png www/ || true
-          
-          # 创建一个标准的 package.json
           echo '{
             "name": "politics-app",
             "version": "1.0.0",
@@ -44,22 +40,35 @@ jobs:
 
       - name: 6. 初始化 Capacitor 平台
         run: |
-          # 强制生成配置文件，webDir 指向隔离后的 www
           echo '{
             "appId": "com.sniper.politics",
             "appName": "政治背诵助手",
             "webDir": "www",
             "bundledWebRuntime": false
           }' > capacitor.config.json
-          
-          # 添加安卓平台
           npx cap add android
 
-      - name: 7. 注入你的 Logo 图标
+      - name: 7. 暴力注入图标 (解决图标不对的问题)
         run: |
-          # 覆盖安卓工程里的默认机器人图标
-          mkdir -p android/app/src/main/res/drawable
-          cp logo.png android/app/src/main/res/drawable/ic_launcher_foreground.png || true
+          # 定义所有安卓分辨率目录
+          DIMS=("mdpi" "hdpi" "xhdpi" "xxhdpi" "xxxhdpi")
+          
+          # 遍历所有目录，强制替换默认的图标文件
+          for dim in "${DIMS[@]}"; do
+            # 确保目录存在
+            RES_DIR="android/app/src/main/res/mipmap-$dim"
+            mkdir -p $RES_DIR
+            
+            # 覆盖常规图标、圆角图标和前景图标
+            cp -f logo.png $RES_DIR/ic_launcher.png
+            cp -f logo.png $RES_DIR/ic_launcher_round.png
+            cp -f logo.png $RES_DIR/ic_launcher_foreground.png
+          done
+          
+          # 处理自适应图标的背景（强制设为白色或使用你的logo，防止出现黑边）
+          # 我们直接把背景也换成你的logo或者纯色配置
+          echo '<?xml version="1.0" encoding="utf-8"?><adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@mipmap/ic_launcher_foreground"/><foreground android:drawable="@mipmap/ic_launcher_foreground"/></adaptive-icon>' > android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          echo '<?xml version="1.0" encoding="utf-8"?><adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@mipmap/ic_launcher_foreground"/><foreground android:drawable="@mipmap/ic_launcher_foreground"/></adaptive-icon>' > android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
 
       - name: 8. 执行安卓编译
         run: |
