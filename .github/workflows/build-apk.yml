@@ -1,4 +1,4 @@
-name: 自动生成安卓安装包
+name: 自动生成安卓安装包 (Pro版)
 on:
   push:
     branches: [ main, master ]
@@ -8,19 +8,42 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 1. 拉取代码
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: 2. 一键打包 APK
-        uses: coleam00/build-web-app-action@v1
+      - name: 2. 安装 Java 环境
+        uses: actions/setup-java@v4
         with:
-          app_name: "政治背诵助手"
-          app_id: "com.sniper.politics.assistant"
-          web_dir: "."
-          icon_file: "logo.png" # 直接使用你上传的这张 PNG
-          android_version: 33
+          java-version: '17'
+          distribution: 'temurin'
 
-      - name: 3. 导出 APK
-        uses: actions/upload-artifact@v3
+      - name: 3. 安装 Node.js
+        uses: actions/setup-node@v4
         with:
-          name: PoliticsAssistant-Release
-          path: ./*-release-unsigned.apk
+          node-version: 18
+
+      - name: 4. 初始化打包环境
+        run: |
+          # 创建必要的配置文件
+          echo '{ "name": "politics-app", "version": "1.0.0" }' > package.json
+          npm install @capacitor/core @capacitor/cli @capacitor/android
+          # 初始化 Capacitor，设置 App 名字和 ID
+          npx cap init "政治背诵助手" "com.sniper.politics" --web-dir .
+          npx cap add android
+
+      - name: 5. 注入图标
+        run: |
+          # 将你的 logo.png 复制为安卓系统需要的图标文件名
+          cp logo.png icon.png
+
+      - name: 6. 同步资源并构建
+        run: |
+          npx cap sync android
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: 7. 导出 APK 文件
+        uses: actions/upload-artifact@v4
+        with:
+          name: Politics-Assistant-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
