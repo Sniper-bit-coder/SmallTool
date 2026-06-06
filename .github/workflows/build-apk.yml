@@ -1,4 +1,4 @@
-name: 自动生成安卓安装包 (图标完美修复版)
+name: 自动生成安卓安装包 (图标缩放完美修复版)
 on:
   push:
     branches: [ main, master ]
@@ -25,50 +25,49 @@ jobs:
         run: |
           mkdir -p www
           cp *.html *.js *.css *.json *.jpg *.png www/ || true
-          echo '{
-            "name": "politics-app",
-            "version": "1.0.0",
-            "dependencies": {
-              "@capacitor/android": "^5.0.0",
-              "@capacitor/cli": "^5.0.0",
-              "@capacitor/core": "^5.0.0"
-            }
-          }' > package.json
+          echo '{ "name": "politics-app", "version": "1.0.0", "dependencies": { "@capacitor/android": "^5.0.0", "@capacitor/cli": "^5.0.0", "@capacitor/core": "^5.0.0" } }' > package.json
 
       - name: 5. 安装依赖
         run: npm install
 
       - name: 6. 初始化 Capacitor 平台
         run: |
-          echo '{
-            "appId": "com.sniper.politics",
-            "appName": "政治背诵助手",
-            "webDir": "www",
-            "bundledWebRuntime": false
-          }' > capacitor.config.json
+          echo '{ "appId": "com.sniper.politics", "appName": "政治背诵助手", "webDir": "www", "bundledWebRuntime": false }' > capacitor.config.json
           npx cap add android
 
-      - name: 7. 暴力注入图标 (解决图标不对的问题)
+      - name: 7. 专业级图标缩放处理 (ImageMagick)
         run: |
-          # 定义所有安卓分辨率目录
-          DIMS=("mdpi" "hdpi" "xhdpi" "xxhdpi" "xxxhdpi")
+          # 安装图像处理工具
+          sudo apt-get install -y imagemagick
           
-          # 遍历所有目录，强制替换默认的图标文件
+          # 颜色定义：使用你 CSS 里的主色调靛蓝 #5865f2
+          BG_COLOR="#5865f2"
+          
+          # 处理流程：
+          # 1. 将原图缩小并居中，四周留出透明/背景色边距（防止被安卓遮罩裁剪）
+          # 2. 生成前景图 (foreground) - 缩小到 60%，确保神庙在安全区内
+          convert logo.png -resize 60%x60% -gravity center -background none -extent 1024x1024 foreground.png
+          
+          # 3. 暴力替换所有 mipmap 目录下的图片
+          DIMS=("mdpi" "hdpi" "xhdpi" "xxhdpi" "xxxhdpi")
           for dim in "${DIMS[@]}"; do
-            # 确保目录存在
             RES_DIR="android/app/src/main/res/mipmap-$dim"
             mkdir -p $RES_DIR
-            
-            # 覆盖常规图标、圆角图标和前景图标
             cp -f logo.png $RES_DIR/ic_launcher.png
             cp -f logo.png $RES_DIR/ic_launcher_round.png
-            cp -f logo.png $RES_DIR/ic_launcher_foreground.png
+            cp -f foreground.png $RES_DIR/ic_launcher_foreground.png
           done
-          
-          # 处理自适应图标的背景（强制设为白色或使用你的logo，防止出现黑边）
-          # 我们直接把背景也换成你的logo或者纯色配置
-          echo '<?xml version="1.0" encoding="utf-8"?><adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@mipmap/ic_launcher_foreground"/><foreground android:drawable="@mipmap/ic_launcher_foreground"/></adaptive-icon>' > android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
-          echo '<?xml version="1.0" encoding="utf-8"?><adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@mipmap/ic_launcher_foreground"/><foreground android:drawable="@mipmap/ic_launcher_foreground"/></adaptive-icon>' > android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+
+          # 4. 关键：定义 XML 背景颜色，解决缩放和裁剪产生的黑边问题
+          VALUES_DIR="android/app/src/main/res/values"
+          mkdir -p $VALUES_DIR
+          echo "<?xml version='1.0' encoding='utf-8'?><resources><color name='ic_launcher_background'>$BG_COLOR</color></resources>" > $VALUES_DIR/colors.xml
+
+          # 5. 重写自适应图标定义
+          ANYDPI_DIR="android/app/src/main/res/mipmap-anydpi-v26"
+          mkdir -p $ANYDPI_DIR
+          echo "<?xml version='1.0' encoding='utf-8'?><adaptive-icon xmlns:android='http://schemas.android.com/apk/res/android'><background android:drawable='@color/ic_launcher_background'/><foreground android:drawable='@mipmap/ic_launcher_foreground'/></adaptive-icon>" > $ANYDPI_DIR/ic_launcher.xml
+          echo "<?xml version='1.0' encoding='utf-8'?><adaptive-icon xmlns:android='http://schemas.android.com/apk/res/android'><background android:drawable='@color/ic_launcher_background'/><foreground android:drawable='@mipmap/ic_launcher_foreground'/></adaptive-icon>" > $ANYDPI_DIR/ic_launcher_round.xml
 
       - name: 8. 执行安卓编译
         run: |
@@ -77,7 +76,7 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: 9. 导出 APK 文件
+      - name: 9. 导出最终 APK
         uses: actions/upload-artifact@v4
         with:
           name: Politics-Assistant-APK
