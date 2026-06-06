@@ -1,0 +1,26 @@
+name: 自动生成安卓安装包
+on:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. 拉取代码
+        uses: actions/checkout@v3
+
+      - name: 2. 一键打包 APK
+        uses: coleam00/build-web-app-action@v1
+        with:
+          app_name: "政治背诵助手"
+          app_id: "com.sniper.politics.assistant"
+          web_dir: "."
+          icon_file: "icon.png" # 直接使用你上传的这张 PNG
+          android_version: 33
+
+      - name: 3. 导出 APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: PoliticsAssistant-Release
+          path: ./*-release-unsigned.apk
