@@ -16,7 +16,7 @@ jobs:
           app_name: "政治背诵助手"
           app_id: "com.sniper.politics.assistant"
           web_dir: "."
-          icon_file: "icon.png" # 直接使用你上传的这张 PNG
+          icon_file: "logo.png" # 直接使用你上传的这张 PNG
           android_version: 33
 
       - name: 3. 导出 APK
