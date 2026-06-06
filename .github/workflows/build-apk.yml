@@ -1,4 +1,4 @@
-name: 自动生成安卓安装包 (稳定增强版)
+name: 自动生成安卓安装包 (终极修复版)
 on:
   push:
     branches: [ main, master ]
@@ -21,32 +21,53 @@ jobs:
         with:
           node-version: 20
 
-      - name: 4. 整理网页资源 (解决递归拷贝问题)
+      - name: 4. 强制构造项目环境
         run: |
-          # 创建一个纯粹的网页存放目录 www
-          mkdir www
-          # 将所有网页相关文件拷贝进去（排除掉不需要打包进 App 的文件）
-          cp *.html *.js *.css *.json *.jpg *.png www/ || true
-          # 确保 package.json 存在
-          echo '{ "name": "politics-app", "version": "1.0.0" }' > package.json
+          # 建立一个标准的 Node 项目结构
+          echo '{
+            "name": "politics-app",
+            "version": "1.0.0",
+            "dependencies": {
+              "@capacitor/android": "^5.0.0",
+              "@capacitor/cli": "^5.0.0",
+              "@capacitor/core": "^5.0.0"
+            }
+          }' > package.json
+          
+          # 安装打包工具
+          npm install
 
-      - name: 5. 安装并初始化 Capacitor
+      - name: 5. 初始化配置并添加安卓平台
         run: |
-          npm install @capacitor/core @capacitor/cli @capacitor/android
-          # 关键：设置 --web-dir 为刚刚创建的 www
-          npx cap init "政治背诵助手" "com.sniper.politics" --web-dir www
+          # 创建配置文件，明确告诉工具网页就在当前根目录
+          echo '{
+            "appId": "com.sniper.politics",
+            "appName": "政治背诵助手",
+            "webDir": ".",
+            "bundledWebRuntime": false
+          }' > capacitor.config.json
+          
+          # 物理创建安卓工程文件夹
           npx cap add android
 
-      - name: 6. 同步资源并开始编译
+      - name: 6. 注入图标
         run: |
+          # 将你的 logo.png 强制覆盖到安卓默认图标位置
+          # 这一步能确保生成的 APK 桌面图标是你那张蓝色的图
+          mkdir -p android/app/src/main/res/drawable
+          cp logo.png android/app/src/main/res/drawable/ic_launcher_foreground.png || true
+
+      - name: 7. 编译 APK
+        run: |
+          # 同步网页文件到安卓工程
           npx cap sync android
+          # 进入安卓目录执行最终编译
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: 7. 导出最终 APK
+      - name: 8. 导出 APK 文件
         uses: actions/upload-artifact@v4
         with:
           name: Politics-Assistant-APK
-          # 这里的路径是 Capacitor 生成 APK 的标准路径
           path: android/app/build/outputs/apk/debug/app-debug.apk
