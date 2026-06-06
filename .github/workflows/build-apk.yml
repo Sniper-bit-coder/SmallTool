@@ -1,4 +1,4 @@
-name: 自动生成安卓安装包 (终极修复版)
+name: 自动生成安卓安装包 (隔离修复版)
 on:
   push:
     branches: [ main, master ]
@@ -16,14 +16,19 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: 3. 准备 Node.js 环境
+      - name: 3. 准备 Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: 4. 强制构造项目环境
+      - name: 4. 隔离网页资源 (核心修复步骤)
         run: |
-          # 建立一个标准的 Node 项目结构
+          # 创建一个完全干净的输出目录
+          mkdir -p www
+          # 只拷贝网页运行需要的文件，不拷贝隐藏文件夹
+          cp *.html *.js *.css *.json *.jpg *.png www/ || true
+          
+          # 创建一个标准的 package.json
           echo '{
             "name": "politics-app",
             "version": "1.0.0",
@@ -33,40 +38,37 @@ jobs:
               "@capacitor/core": "^5.0.0"
             }
           }' > package.json
-          
-          # 安装打包工具
-          npm install
 
-      - name: 5. 初始化配置并添加安卓平台
+      - name: 5. 安装依赖
+        run: npm install
+
+      - name: 6. 初始化 Capacitor 平台
         run: |
-          # 创建配置文件，明确告诉工具网页就在当前根目录
+          # 强制生成配置文件，webDir 指向隔离后的 www
           echo '{
             "appId": "com.sniper.politics",
             "appName": "政治背诵助手",
-            "webDir": ".",
+            "webDir": "www",
             "bundledWebRuntime": false
           }' > capacitor.config.json
           
-          # 物理创建安卓工程文件夹
+          # 添加安卓平台
           npx cap add android
 
-      - name: 6. 注入图标
+      - name: 7. 注入你的 Logo 图标
         run: |
-          # 将你的 logo.png 强制覆盖到安卓默认图标位置
-          # 这一步能确保生成的 APK 桌面图标是你那张蓝色的图
+          # 覆盖安卓工程里的默认机器人图标
           mkdir -p android/app/src/main/res/drawable
           cp logo.png android/app/src/main/res/drawable/ic_launcher_foreground.png || true
 
-      - name: 7. 编译 APK
+      - name: 8. 执行安卓编译
         run: |
-          # 同步网页文件到安卓工程
           npx cap sync android
-          # 进入安卓目录执行最终编译
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: 8. 导出 APK 文件
+      - name: 9. 导出 APK 文件
         uses: actions/upload-artifact@v4
         with:
           name: Politics-Assistant-APK
